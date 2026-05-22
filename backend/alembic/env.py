@@ -20,6 +20,8 @@ if config.config_file_name is not None:
 # target_metadata = mymodel.Base.metadata
 from app.models.movie import Movie
 from app.models.user import User
+from app.models.comment import Comment
+from app.models.rating import Rating
 from app.database import Base
 target_metadata = Base.metadata
 
