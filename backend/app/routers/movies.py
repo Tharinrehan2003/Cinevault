@@ -10,7 +10,7 @@ router = APIRouter(prefix="/movies", tags=["Movies"])
 @router.get("/", response_model=List[MovieResponse])
 def get_all_movies(db: Session = Depends(get_db)):
     movies = db.query(Movie).all()
-    return movies9
+    return movies
 
 @router.get("/{movie_id}", response_model=MovieResponse)
 def get_movie(movie_id: str, db: Session = Depends(get_db)):
