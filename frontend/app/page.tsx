@@ -5,7 +5,7 @@ interface Movie {
   id: string;
   title: string;
   description: string;
-  poster_url: string | null;
+  poster_url: string | null; 
   release_year: number | null;
   director: string | null;
   imdb_rating: string | null;

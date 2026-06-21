@@ -28,4 +28,33 @@ export const api = {
     });
     return res.json();
   },
+
+  async rateMovie(movieId: string, stars: number | null, vote: string | null, token: string) {
+    const res = await fetch(`${API_URL}/movies/${movieId}/rate`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ stars, vote }),
+    });
+    return res.json();
+  },
+
+  async addComment(movieId: string, content: string, token: string) {
+    const res = await fetch(`${API_URL}/movies/${movieId}/comment`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ content }),
+    });
+    return res.json();
+  },
+
+  async getComments(movieId: string) {
+    const res = await fetch(`${API_URL}/movies/${movieId}/comments`);
+    return res.json();
+  },
 };

@@ -1,4 +1,8 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import Link from "next/link";
+import { useParams } from "next/navigation";
 import { api } from "@/lib/api";
 
 interface Cast {
@@ -21,13 +25,51 @@ interface Movie {
   trailer_url: string | null;
 }
 
-export default async function MovieDetail({
-  params,
-}: {
-  params: Promise<{ id: string }>; // 1. Change type to a Promise
-}) {
-  const resolvedParams = await params; // 2. Await the promise to extract the actual ID
-  const movie: Movie = await api.getMovie(resolvedParams.id); // 3. Pass the valid ID to your API
+interface Comment {
+  id: string;
+  content: string;
+  user_id: string;
+}
+
+export default function MovieDetail() {
+  const params = useParams();
+  const movieId = params.id as string;
+
+  const [movie, setMovie] = useState<Movie | null>(null);
+  const [comments, setComments] = useState<Comment[]>([]);
+  const [newComment, setNewComment] = useState("");
+  const [token, setToken] = useState<string | null>(null);
+  const [voteMessage, setVoteMessage] = useState("");
+  const [posting, setPosting] = useState(false);
+
+  useEffect(() => {
+    setToken(localStorage.getItem("token"));
+    api.getMovie(movieId).then(setMovie);
+    api.getComments(movieId).then(setComments);
+  }, [movieId]);
+
+  async function handleVote(vote: "up" | "down") {
+    if (!token) return;
+    await api.rateMovie(movieId, null, vote, token);
+    setVoteMessage(vote === "up" ? "You liked this movie!" : "You disliked this movie.");
+  }
+
+  async function handleComment() {
+    if (!token || !newComment.trim()) return;
+    setPosting(true);
+    const comment = await api.addComment(movieId, newComment, token);
+    setComments([...comments, comment]);
+    setNewComment("");
+    setPosting(false);
+  }
+
+  if (!movie) {
+    return (
+      <main className="min-h-screen bg-gray-950 text-white flex items-center justify-center">
+        <p className="text-gray-500">Loading...</p>
+      </main>
+    );
+  }
 
   return (
     <main className="min-h-screen bg-gray-950 text-white">
@@ -37,12 +79,18 @@ export default async function MovieDetail({
           🎬 CineVault
         </Link>
         <div className="flex gap-4">
-          <Link href="/auth/login" className="text-gray-300 hover:text-white transition">
-            Login
-          </Link>
-          <Link href="/auth/register" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition">
-            Sign Up
-          </Link>
+          {token ? (
+            <span className="text-gray-400 self-center text-sm">Logged in</span>
+          ) : (
+            <>
+              <Link href="/auth/login" className="text-gray-300 hover:text-white transition">
+                Login
+              </Link>
+              <Link href="/auth/register" className="bg-red-600 hover:bg-red-700 px-4 py-2 rounded-lg transition">
+                Sign Up
+              </Link>
+            </>
+          )}
         </div>
       </nav>
 
@@ -53,40 +101,29 @@ export default async function MovieDetail({
           <div className="w-full md:w-72 flex-shrink-0">
             <div className="aspect-[2/3] bg-gray-800 rounded-xl overflow-hidden flex items-center justify-center">
               {movie.poster_url ? (
-                <img
-                  src={movie.poster_url}
-                  alt={movie.title}
-                  className="w-full h-full object-cover"
-                />
+                <img src={movie.poster_url} alt={movie.title} className="w-full h-full object-cover" />
               ) : (
                 <span className="text-6xl">🎬</span>
               )}
             </div>
 
-            {/* Ratings */}
             <div className="mt-4 bg-gray-900 rounded-xl p-4 space-y-3 border border-gray-800">
               {movie.imdb_rating && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">IMDB</span>
-                  <span className="text-yellow-400 font-bold">
-                    ⭐ {movie.imdb_rating}/10
-                  </span>
+                  <span className="text-yellow-400 font-bold">⭐ {movie.imdb_rating}/10</span>
                 </div>
               )}
               {movie.rotten_tomatoes && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">Rotten Tomatoes</span>
-                  <span className="text-red-400 font-bold">
-                    🍅 {movie.rotten_tomatoes}%
-                  </span>
+                  <span className="text-red-400 font-bold">🍅 {movie.rotten_tomatoes}%</span>
                 </div>
               )}
               {movie.my_rating && (
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400 text-sm">My Rating</span>
-                  <span className="text-red-400 font-bold">
-                    ❤️ {movie.my_rating}/10
-                  </span>
+                  <span className="text-red-400 font-bold">❤️ {movie.my_rating}/10</span>
                 </div>
               )}
             </div>
@@ -101,47 +138,30 @@ export default async function MovieDetail({
               {movie.director && <span>• Directed by {movie.director}</span>}
             </div>
 
-            {/* Genres */}
             {movie.genres && movie.genres.length > 0 && (
               <div className="flex flex-wrap gap-2 mb-6">
                 {movie.genres.map((genre) => (
-                  <span
-                    key={genre}
-                    className="bg-red-600 bg-opacity-20 text-red-400 border border-red-600 border-opacity-30 px-3 py-1 rounded-full text-sm"
-                  >
+                  <span key={genre} className="bg-red-600 bg-opacity-20 text-red-400 border border-red-600 border-opacity-30 px-3 py-1 rounded-full text-sm">
                     {genre}
                   </span>
                 ))}
               </div>
             )}
 
-            {/* Description */}
-            <p className="text-gray-300 leading-relaxed text-lg mb-8">
-              {movie.description}
-            </p>
+            <p className="text-gray-300 leading-relaxed text-lg mb-8">{movie.description}</p>
 
-            {/* Trailer */}
             {movie.trailer_url && (
-                <a
-                    href={movie.trailer_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition mb-8"
-                >
-                    ▶ Watch Trailer
-                </a>
+              <a href={movie.trailer_url} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 bg-red-600 hover:bg-red-700 px-6 py-3 rounded-lg font-semibold transition mb-8">
+                ▶ Watch Trailer
+              </a>
             )}
 
-            {/* Cast */}
             {movie.cast && movie.cast.length > 0 && (
               <div className="mb-8">
                 <h2 className="text-xl font-bold mb-4">Cast</h2>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
                   {movie.cast.map((member, index) => (
-                    <div
-                      key={index}
-                      className="bg-gray-900 border border-gray-800 rounded-lg p-3"
-                    >
+                    <div key={index} className="bg-gray-900 border border-gray-800 rounded-lg p-3">
                       <p className="font-semibold text-sm">{member.name}</p>
                       <p className="text-gray-500 text-xs">{member.role}</p>
                     </div>
@@ -153,18 +173,28 @@ export default async function MovieDetail({
             {/* Rate this movie */}
             <div className="bg-gray-900 border border-gray-800 rounded-xl p-6 mb-8">
               <h2 className="text-xl font-bold mb-4">Rate this Movie</h2>
-              <p className="text-gray-500 text-sm mb-4">
-                Please{" "}
-                <Link href="/auth/login" className="text-red-400 hover:underline">
-                  login
-                </Link>{" "}
-                to rate this movie.
-              </p>
+
+              {!token ? (
+                <p className="text-gray-500 text-sm mb-4">
+                  Please <Link href="/auth/login" className="text-red-400 hover:underline">login</Link> to rate this movie.
+                </p>
+              ) : voteMessage ? (
+                <p className="text-green-400 text-sm mb-4">{voteMessage}</p>
+              ) : null}
+
               <div className="flex gap-3">
-                <button className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg py-3 transition text-gray-400">
+                <button
+                  onClick={() => handleVote("up")}
+                  disabled={!token}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border border-gray-700 rounded-lg py-3 transition text-gray-300"
+                >
                   👍 Like
                 </button>
-                <button className="flex-1 bg-gray-800 hover:bg-gray-700 border border-gray-700 rounded-lg py-3 transition text-gray-400">
+                <button
+                  onClick={() => handleVote("down")}
+                  disabled={!token}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 disabled:opacity-40 disabled:cursor-not-allowed border border-gray-700 rounded-lg py-3 transition text-gray-300"
+                >
                   👎 Dislike
                 </button>
               </div>
@@ -172,18 +202,41 @@ export default async function MovieDetail({
 
             {/* Comments */}
             <div>
-              <h2 className="text-xl font-bold mb-4">Comments</h2>
+              <h2 className="text-xl font-bold mb-4">Comments ({comments.length})</h2>
+
               <div className="bg-gray-900 border border-gray-800 rounded-xl p-4 mb-4">
                 <textarea
-                  placeholder="Login to leave a comment..."
-                  disabled
-                  className="w-full bg-transparent text-gray-500 placeholder-gray-600 resize-none outline-none"
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder={token ? "Write a comment..." : "Login to leave a comment..."}
+                  disabled={!token}
+                  className="w-full bg-transparent text-white placeholder-gray-600 resize-none outline-none disabled:cursor-not-allowed"
                   rows={3}
                 />
+                {token && (
+                  <button
+                    onClick={handleComment}
+                    disabled={posting || !newComment.trim()}
+                    className="mt-2 bg-red-600 hover:bg-red-700 disabled:opacity-50 px-4 py-2 rounded-lg text-sm font-semibold transition"
+                  >
+                    {posting ? "Posting..." : "Post Comment"}
+                  </button>
+                )}
               </div>
-              <p className="text-gray-600 text-sm text-center py-8">
-                No comments yet. Be the first to comment!
-              </p>
+
+              {comments.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-8">
+                  No comments yet. Be the first to comment!
+                </p>
+              ) : (
+                <div className="space-y-3">
+                  {comments.map((comment) => (
+                    <div key={comment.id} className="bg-gray-900 border border-gray-800 rounded-lg p-4">
+                      <p className="text-gray-300">{comment.content}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>
