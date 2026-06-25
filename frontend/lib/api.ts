@@ -57,4 +57,17 @@ export const api = {
     const res = await fetch(`${API_URL}/movies/${movieId}/comments`);
     return res.json();
   },
+
+  async createMovie(movieData: object, token: string) {
+    const res = await fetch(`${API_URL}/movies/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(movieData),
+    });
+    return res.json();
+  },
+  
 };
